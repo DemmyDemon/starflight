@@ -6,8 +6,8 @@
             "command": "go",
             "args": [
                 "build",
-                "-o",
-                "${workspaceFolder}/wasm/starflight.wasm",
+                "-ldflags", "-s -w",
+                "-o", "${workspaceFolder}/wasm/starflight.wasm",
                 "github.com/DemmyDemon/starflight"
             ],
             "options": {

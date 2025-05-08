@@ -4,6 +4,7 @@ import (
 	"image/color"
 	"math/rand/v2"
 	"os"
+	"runtime"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -54,7 +55,7 @@ func New(foreground *ebiten.Image) ebiten.Game {
 		foreground: foreground,
 		fgOptions:  &ebiten.DrawImageOptions{},
 		Stars:      stars,
-		Warp:       false,
+		Warp:       true,
 		Run:        true,
 		WarpFactor: 0,
 		TargetWarp: 9.9,
@@ -99,7 +100,9 @@ func (p *Porthole) Update() error {
 	p.Counter++
 
 	if ebiten.IsKeyPressed(ebiten.KeyQ) {
-		os.Exit(0)
+		if runtime.GOARCH != "wasm" { // Because this will exit the program, but not exit fullscreen or clear the canvas...
+			os.Exit(0)
+		}
 	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) || inpututil.IsMouseButtonJustPressed(ebiten.MouseButton2) {
