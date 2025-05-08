@@ -1,0 +1,27 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build WASM",
+            "command": "go",
+            "args": [
+                "build",
+                "-o",
+                "${workspaceFolder}/wasm/starflight.wasm",
+                "github.com/DemmyDemon/starflight"
+            ],
+            "options": {
+                "env": {
+                    "GOOS":"js",
+                    "GOARCH":"wasm"
+                },
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "Abracapocus the WASM file"
+        }
+    ]
+}
