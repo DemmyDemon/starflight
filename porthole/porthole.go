@@ -5,18 +5,21 @@ import (
 	"math/rand/v2"
 	"os"
 	"runtime"
+	"slices"
 
+	"github.com/DemmyDemon/starflight/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
 const (
-	WIDTH    = 480
-	HEIGHT   = 270
-	DEPTH    = 20
-	MINDEPTH = 5
-	STARS    = 75
-	SLOWNESS = 45.0
+	WIDTH     = 480
+	HEIGHT    = 270
+	DEPTH     = 20
+	MINDEPTH  = 5
+	STARS     = 75
+	SLOWNESS  = 45.0
+	USESHADER = true
 )
 
 var (
@@ -24,6 +27,7 @@ var (
 )
 
 type Porthole struct {
+	starsImage *ebiten.Image
 	foreground *ebiten.Image
 	fgOptions  *ebiten.DrawImageOptions
 	Stars      []Star
@@ -45,6 +49,7 @@ type Star struct {
 
 func New(foreground *ebiten.Image) ebiten.Game {
 
+	shaders.MustLoad()
 	stars := make([]Star, STARS)
 
 	for i := 0; i < STARS; i++ {
@@ -61,6 +66,8 @@ func New(foreground *ebiten.Image) ebiten.Game {
 		TargetWarp: 9.9,
 		WarpRamp:   0.1,
 	}
+
+	f.SortStars()
 
 	return f
 }
@@ -79,21 +86,22 @@ func NewStar() Star {
 }
 
 func PickStarColor(depth float64) color.Color {
+	luma := uint8(255 * depth)
+	cb := uint8(rand.Uint() % 256)
+	cr := uint8(rand.Uint() % 256)
+	r, g, b := color.YCbCrToRGB(luma, cb, cr)
+	return color.RGBA{r, g, b, 255}
+}
 
-	r := rand.Uint32() % 256
-	g := rand.Uint32() % 256
-	b := rand.Uint32() % 256
+func cmpDepth(a Star, b Star) int {
+	if a.Z > b.Z {
+		return 1
+	}
+	return -1
+}
 
-	// Calculate luminance (Cargo cult FTW)
-	luminance := (0.2126*float64(r) + 0.7152*float64(g) + 0.0722*float64(b))
-
-	scale := 255 / luminance
-	finalR := float64(r) * scale
-	finalG := float64(g) * scale
-	finalB := float64(b) * scale
-
-	base := color.RGBA{clamp(finalR), clamp(finalG), clamp(finalB), 255}
-	return AlphaPrecalc(base, depth)
+func (p *Porthole) SortStars() {
+	slices.SortFunc(p.Stars, cmpDepth)
 }
 
 func (p *Porthole) Update() error {
@@ -152,6 +160,7 @@ func (p *Porthole) Update() error {
 }
 
 func (p *Porthole) Move() {
+	needSort := false
 	for i := 0; i < STARS; i++ {
 		p.Stars[i].X += ((p.WarpFactor * p.Stars[i].Z) / SLOWNESS)
 		if p.Stars[i].X > WIDTH {
@@ -159,7 +168,11 @@ func (p *Porthole) Move() {
 			p.Stars[i].Y = rand.Float64() * HEIGHT
 			p.Stars[i].Z = rand.Float64()*DEPTH + MINDEPTH
 			p.Stars[i].Color = PickStarColor(p.Stars[i].Z / (DEPTH + MINDEPTH))
+			needSort = true
 		}
+	}
+	if needSort {
+		p.SortStars()
 	}
 }
 
@@ -167,7 +180,25 @@ func (p *Porthole) Draw(screen *ebiten.Image) {
 
 	screen.Fill(ColSpace)
 
-	if p.WarpFactor == 0 {
+	if USESHADER {
+		if p.starsImage == nil {
+			p.starsImage = ebiten.NewImage(WIDTH, HEIGHT)
+		}
+		p.starsImage.Clear()
+		p.DrawStill(p.starsImage)
+		screen.DrawRectShader(
+			WIDTH, HEIGHT, shaders.Get("starsmudge"),
+			&ebiten.DrawRectShaderOptions{
+				Uniforms: map[string]any{
+					"WarpFactor": p.WarpFactor,
+				},
+				Images: [4]*ebiten.Image{
+					p.starsImage,
+				},
+			},
+		)
+		screen.DrawImage(p.starsImage, p.fgOptions)
+	} else if p.WarpFactor == 0 {
 		p.DrawStill(screen)
 	} else {
 		p.DrawWarp(screen)
@@ -178,11 +209,9 @@ func (p *Porthole) Draw(screen *ebiten.Image) {
 	}
 }
 
-func (p *Porthole) DrawStill(screen *ebiten.Image) {
-	if p.WarpFactor == 0 {
-		for _, star := range p.Stars {
-			screen.Set(int(star.X), int(star.Y), star.Color)
-		}
+func (p *Porthole) DrawStill(img *ebiten.Image) {
+	for _, star := range p.Stars {
+		img.Set(int(star.X), int(star.Y), star.Color)
 	}
 }
 

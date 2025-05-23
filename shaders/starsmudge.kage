@@ -1,0 +1,30 @@
+//kage:unit pixels
+package starlight
+
+const MaxWarp = 9.0
+var WarpFactor float
+
+func Fragment(dstPos vec4, srcPos vec2) vec4 {
+    color := imageSrc0At(dstPos.xy)
+    if WarpFactor == 0 {
+        return color
+    }
+
+    if color.r > 0 && color.g > 0 && color.b > 0 {
+        return color
+    }
+
+    for i := 0.001; i <= MaxWarp; i++ {
+
+        if i > WarpFactor {
+            return color
+        }
+
+        maybeStar := imageSrc0At(vec2(dstPos.x + i, dstPos.y))
+        if maybeStar.r > 0 || maybeStar.g > 0 || maybeStar.g > 0 {
+            return vec4(maybeStar.r/(i*1.5), maybeStar.g/(i*1.5), maybeStar.b/(i*1.5), 1 / i)
+        }
+    }
+
+    return color
+}
