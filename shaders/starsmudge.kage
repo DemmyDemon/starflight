@@ -1,7 +1,7 @@
 //kage:unit pixels
 package starlight
 
-const MaxWarp = 9.0
+const MaxWarp = 10.0
 var WarpFactor float
 
 func Fragment(dstPos vec4, srcPos vec2) vec4 {
@@ -17,7 +17,7 @@ func Fragment(dstPos vec4, srcPos vec2) vec4 {
     for i := 0.001; i <= MaxWarp; i++ {
 
         if i > WarpFactor {
-            return color
+            break
         }
 
         maybeStar := imageSrc0At(vec2(dstPos.x + i, dstPos.y))
